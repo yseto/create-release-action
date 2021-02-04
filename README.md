@@ -22,5 +22,9 @@ $ npm test
 ```yaml
 uses: yseto/m-g-r
 with:
+  directory: artifacts/
+  github-token: ${{ secrets.GITHUB_TOKEN }}
+  tag-prefix: 'refs/tags/v'
+  bump-up-branch-prefix: 'bump-version-'
 ```
 
