@@ -35,3 +35,4 @@ jobs:
         directory: artifacts/
         github-token: ${{ secrets.GITHUB_TOKEN }}
         tag-prefix: 'refs/tags/v'
+        bump-up-branch-prefix: 'bump-version-'
