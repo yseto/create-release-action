@@ -3,23 +3,80 @@ require('./sourcemap-register.js');module.exports =
 /******/ 	var __webpack_modules__ = ({
 
 /***/ 932:
-/***/ ((__unused_webpack_module, __unused_webpack_exports, __webpack_require__) => {
+/***/ ((__unused_webpack_module, __unused_webpack_exports, __nccwpck_require__) => {
 
-const core = __webpack_require__(186);
-const wait = __webpack_require__(258);
+const core = __nccwpck_require__(186);
+const github = __nccwpck_require__(716);
+const read = __nccwpck_require__(117);
 
+async function readPR (octokit, context, version) {
+  const { repo: { owner, repo } } = context;
 
-// most @actions toolkit packages have async methods
+  const prs = await octokit.pulls.list({
+    owner,
+    repo,
+    state: "closed",
+    head: `${owner}:bump-version-${version}`,
+  });
+
+  const pr = prs.data.filter(x => !!x.merged_at);
+  if (pr.length == 1) {
+    return pr[0].body;
+  }
+
+  return "";
+}
+
 async function run() {
   try {
-    const ms = core.getInput('milliseconds');
-    core.info(`Waiting ${ms} milliseconds ...`);
+    const fs = __nccwpck_require__(747).promises;
+    const path = __nccwpck_require__(622);
 
-    core.debug((new Date()).toTimeString()); // debug is only output if you set the secret `ACTIONS_RUNNER_DEBUG` to true
-    await wait(parseInt(ms));
-    core.info((new Date()).toTimeString());
+    const token = core.getInput('github-token');
+    const directory = core.getInput('directory');
+    const tagPrefix = core.getInput('tag-prefix');
 
-    core.setOutput('time', new Date().toTimeString());
+    const octokit = github.getOctokit(token);
+
+    const context = github.context;
+    const { repo: { owner, repo }, ref } = context;
+
+    const tag = ref.replace('refs/tags/', '');
+
+    const release = await octokit.repos.getReleaseByTag({
+      owner,
+      repo,
+      tag,
+    });
+
+    const version = ref.replace(tagPrefix, '');
+    const prText = await readPR(octokit, context, version);
+
+    const artifacts = read('.', () => true, [], directory);
+
+    core.startGroup('Assets')
+    for (let file of artifacts) {
+      core.info('uploading ' + file);
+
+      await octokit.repos.uploadReleaseAsset({
+        owner, repo,
+        release_id: release.data.id,
+        name: path.basename(file),
+        data: await fs.readFile(file),
+      });
+    }
+    core.endGroup()
+
+    await octokit.repos.updateRelease({
+      owner,
+      repo,
+      release_id: release.data.id,
+      prerelease: false,
+      name: tag,
+      body: prText,
+    });
+
+    core.info("\u001b[1mRelease: " + release.data.html_url);
   } catch (error) {
     core.setFailed(error.message);
   }
@@ -31,7 +88,7 @@ run();
 /***/ }),
 
 /***/ 351:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
 
@@ -43,8 +100,8 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-const os = __importStar(__webpack_require__(87));
-const utils_1 = __webpack_require__(278);
+const os = __importStar(__nccwpck_require__(87));
+const utils_1 = __nccwpck_require__(278);
 /**
  * Commands
  *
@@ -117,7 +174,7 @@ function escapeProperty(s) {
 /***/ }),
 
 /***/ 186:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
 
@@ -138,11 +195,11 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-const command_1 = __webpack_require__(351);
-const file_command_1 = __webpack_require__(717);
-const utils_1 = __webpack_require__(278);
-const os = __importStar(__webpack_require__(87));
-const path = __importStar(__webpack_require__(622));
+const command_1 = __nccwpck_require__(351);
+const file_command_1 = __nccwpck_require__(717);
+const utils_1 = __nccwpck_require__(278);
+const os = __importStar(__nccwpck_require__(87));
+const path = __importStar(__nccwpck_require__(622));
 /**
  * The code to exit an action
  */
@@ -362,7 +419,7 @@ exports.getState = getState;
 /***/ }),
 
 /***/ 717:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
 
@@ -377,9 +434,9 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 // We use any as a valid input type
 /* eslint-disable @typescript-eslint/no-explicit-any */
-const fs = __importStar(__webpack_require__(747));
-const os = __importStar(__webpack_require__(87));
-const utils_1 = __webpack_require__(278);
+const fs = __importStar(__nccwpck_require__(747));
+const os = __importStar(__nccwpck_require__(87));
+const utils_1 = __nccwpck_require__(278);
 function issueCommand(command, message) {
     const filePath = process.env[`GITHUB_${command}`];
     if (!filePath) {
@@ -423,19 +480,46 @@ exports.toCommandValue = toCommandValue;
 
 /***/ }),
 
-/***/ 258:
+/***/ 117:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+var fs = __nccwpck_require__(747)
+var path = __nccwpck_require__(622)
+
+module.exports = read
+
+function read(root, filter, files, prefix) {
+  prefix = prefix || ''
+  files = files || []
+  filter = filter || noDotFiles
+
+  var dir = path.join(root, prefix)
+  if (!fs.existsSync(dir)) return files
+  if (fs.statSync(dir).isDirectory())
+    fs.readdirSync(dir)
+    .filter(function (name, index) {
+      return filter(name, index, dir)
+    })
+    .forEach(function (name) {
+      read(root, filter, files, path.join(prefix, name))
+    })
+  else
+    files.push(prefix)
+
+  return files
+}
+
+function noDotFiles(x) {
+  return x[0] !== '.'
+}
+
+
+/***/ }),
+
+/***/ 716:
 /***/ ((module) => {
 
-let wait = function (milliseconds) {
-  return new Promise((resolve) => {
-    if (typeof milliseconds !== 'number') {
-      throw new Error('milliseconds not a number');
-    }
-    setTimeout(() => resolve("done!"), milliseconds)
-  });
-};
-
-module.exports = wait;
+module.exports = eval("require")("@actions/github");
 
 
 /***/ }),
@@ -470,7 +554,7 @@ module.exports = require("path");;
 /******/ 	var __webpack_module_cache__ = {};
 /******/ 	
 /******/ 	// The require function
-/******/ 	function __webpack_require__(moduleId) {
+/******/ 	function __nccwpck_require__(moduleId) {
 /******/ 		// Check if module is in cache
 /******/ 		if(__webpack_module_cache__[moduleId]) {
 /******/ 			return __webpack_module_cache__[moduleId].exports;
@@ -485,7 +569,7 @@ module.exports = require("path");;
 /******/ 		// Execute the module function
 /******/ 		var threw = true;
 /******/ 		try {
-/******/ 			__webpack_modules__[moduleId].call(module.exports, module, module.exports, __webpack_require__);
+/******/ 			__webpack_modules__[moduleId].call(module.exports, module, module.exports, __nccwpck_require__);
 /******/ 			threw = false;
 /******/ 		} finally {
 /******/ 			if(threw) delete __webpack_module_cache__[moduleId];
@@ -498,11 +582,11 @@ module.exports = require("path");;
 /************************************************************************/
 /******/ 	/* webpack/runtime/compat */
 /******/ 	
-/******/ 	__webpack_require__.ab = __dirname + "/";/************************************************************************/
+/******/ 	__nccwpck_require__.ab = __dirname + "/";/************************************************************************/
 /******/ 	// module exports must be returned from runtime so entry inlining is disabled
 /******/ 	// startup
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(932);
+/******/ 	return __nccwpck_require__(932);
 /******/ })()
 ;
 //# sourceMappingURL=index.js.map
