@@ -26,6 +26,7 @@
   "homepage": "https://github.com/yseto/m-g-r#readme",
   "dependencies": {
     "@actions/core": "^1.2.5",
+    "@actions/github": "^4.0.0",
     "fs-readdir-recursive": "^1.1.0"
   },
   "devDependencies": {
