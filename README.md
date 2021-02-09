@@ -1,6 +1,6 @@
 # create-release-action
 
-<a href="https://github.com/yseto/create-release-action/actions"><img alt="javscript-action status" src="https://github.com/yseto/create-release-action/workflows/units-test/badge.svg"></a>
+<a href="https://github.com/mackerelio/create-release-action/actions"><img alt="javscript-action status" src="https://github.com/mackerelio/create-release-action/workflows/units-test/badge.svg"></a>
 
 ## Code in Main
 
@@ -20,7 +20,7 @@ $ npm test
 ## Usage
 
 ```yaml
-uses: yseto/create-release-action@main
+uses: mackerelio/create-release-action@main
 with:
   directory: artifacts/
   github-token: ${{ secrets.GITHUB_TOKEN }}
