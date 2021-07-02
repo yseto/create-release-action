@@ -5,7 +5,7 @@ const read = require('fs-readdir-recursive');
 async function readPR (octokit, context, bumpUpBranchPrefix, version) {
   const { repo: { owner, repo } } = context;
 
-  const prs = await octokit.pulls.list({
+  const prs = await octokit.rest.pulls.list({
     owner,
     repo,
     state: "closed",
@@ -37,7 +37,7 @@ async function run() {
 
     const tag = ref.replace('refs/tags/', '');
 
-    const release = await octokit.repos.getReleaseByTag({
+    const release = await octokit.rest.repos.getReleaseByTag({
       owner,
       repo,
       tag,
@@ -52,7 +52,7 @@ async function run() {
     for (let file of artifacts) {
       core.info('uploading ' + file);
 
-      await octokit.repos.uploadReleaseAsset({
+      await octokit.rest.repos.uploadReleaseAsset({
         owner, repo,
         release_id: release.data.id,
         name: path.basename(file),
@@ -61,7 +61,7 @@ async function run() {
     }
     core.endGroup()
 
-    await octokit.repos.updateRelease({
+    await octokit.rest.repos.updateRelease({
       owner,
       repo,
       release_id: release.data.id,
